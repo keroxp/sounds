@@ -54,7 +54,7 @@ const Player: AppFC = ({ store }) => {
   const [text, setText] = useState<string | undefined>(undefined);
   const loading = !audioLoaded && !text;
   useEffect(() => {
-    fetch(song.lyricSrc)
+    fetch(encodeURI(song.lyricSrc))
       .then(async resp => {
         setText(await resp.text());
       })
@@ -74,7 +74,7 @@ const Player: AppFC = ({ store }) => {
             <div>歌: 初音ミク</div>
           </div>
           <audio
-            src={song.audioSrc}
+            src={encodeURI(song.audioSrc)}
             style={{ display: audioLoaded ? "block" : "none" }}
             onCanPlay={() => setAudioLoaded(true)}
             controls
@@ -98,32 +98,32 @@ const songs: Song[] = [
     title: "Polar nights",
     description: "あ",
     published: "2019/09/18",
-    lyricSrc: "lyrics/2019-09-18-Polar-nights.txt",
-    audioSrc: "mp3/2019-09-18-Polar-nights.mp3"
+    lyricSrc: "/lyrics/2019-09-18.txt",
+    audioSrc: "/mp3/2019-09-18.mp3"
   },
   {
     title: "どうしたのって聞かれても",
     description: "あ",
     published: "2019/08/12",
-    thumbSrc: "img/03.png",
-    lyricSrc: "lyrics/2019-08-12-どうしたのって聞かれても.txt",
-    audioSrc: "mp3/2019-08-12-どうしたのって聞かれても.mp3"
+    thumbSrc: "/img/03.png",
+    lyricSrc: "/lyrics/2019-08-12.txt",
+    audioSrc: "/mp3/2019-08-12.mp3"
   },
   {
     title: "Hurry up!",
     description: "あ",
     published: "2019/07/13",
-    thumbSrc: "img/02.png",
-    lyricSrc: "lyrics/2019-07-13-hurry-up.txt",
-    audioSrc: "mp3/2019-07-13-hurry-up.mp3"
+    thumbSrc: "/img/02.png",
+    lyricSrc: "/lyrics/2019-07-13.txt",
+    audioSrc: "/mp3/2019-07-13.mp3"
   },
   {
     title: "空っぽの歌",
     description: "あ",
     published: "2019/07/01",
-    thumbSrc: "img/01.png",
-    lyricSrc: "lyrics/2019-07-01-空っぽの歌.txt",
-    audioSrc: "mp3/2019-07-01-空っぽの歌.mp3"
+    thumbSrc: "/img/01.png",
+    lyricSrc: "/lyrics/2019-07-01.txt",
+    audioSrc: "/mp3/2019-07-01.mp3"
   }
 ];
 

@@ -6,7 +6,8 @@
   "license": "MIT",
   "scripts": {
     "w": "webpack -w",
-    "r": "ts-node src/server.ts"
+    "r": "ts-node src/server.ts",
+    "b": "NODE_ENV=production webpack && tsc"
   },
   "dependencies": {
     "@types/node": "^12.7.5",
