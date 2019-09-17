@@ -1,0 +1,12 @@
+.idea
+.DS_Store
+/node_modules
+/dist
+/public/dist/*
+!.gitkeep
+/coverage
+*.log
+tmp/
+.env-secure.yml
+.env
+.fusebox

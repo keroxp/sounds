@@ -1,0 +1,83 @@
+html,
+body,
+h1,
+h2,
+h3,
+p,
+ul,
+li {
+  margin: 0;
+  padding: 0;
+}
+.content {
+  margin-left: 10vw;
+}
+@media (max-width: 480px) and (orientation: portrait) {
+  .content {
+    width: 100vw;
+    margin: 0;
+  }
+}
+.header {
+  padding: 10px 0;
+}
+.body {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  box-sizing: border-box;
+}
+.playlist {
+  border-right: 1px solid #ccc;
+}
+.songCell {
+  height: 66px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.songCell[data-selected="true"],
+.songCell:hover {
+  background-color: aliceblue;
+}
+.newSong {
+  color: red;
+}
+.songTitle {
+  font-size: 20px;
+  font-weight: bold;
+}
+.songThumb {
+  width: 66px;
+  height: 66px;
+}
+.songCellDesc {
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+.songCellBody {
+  display: grid;
+  height: 64px;
+  grid-template-columns: 64px 1fr;
+}
+.player {
+  padding: 0 15px;
+  box-sizing: border-box;
+  font-size: 15px;
+  margin-bottom: 30px;
+}
+.playerBody {
+}
+.playerTitle {
+  font-size: 20px;
+  margin: 10px 0;
+  font-weight: bold;
+}
+.playerCredits {
+  margin-bottom: 5px;
+}
+.playerLyrics {
+  padding: 10px 0;
+}
+.lyricParagraph {
+  display: block;
+}
