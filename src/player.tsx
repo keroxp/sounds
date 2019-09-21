@@ -52,9 +52,8 @@ export const Player: FC<{ store: Store }> = ({ store }) => {
     }
     if (knobRef.current && !state.dragging) {
       const { width } = sliderRef.current!.getBoundingClientRect();
-      knobRef.current.style.transform = `translateX(${(state.seek.time /
-        state.duration!) *
-        width}px)`;
+      const knobX = (state.seek.time / state.duration!) * width;
+      knobRef.current.style.transform = `translateX${knobX}px)`;
     }
   }, [state.seek, state.dragging, knobRef.current]);
   useEffect(() => {
@@ -354,27 +353,84 @@ const ranges = `
 function getRangeInRange(ms: number): LyricRange | undefined {
   return ranges.filter(v => v.start <= ms && ms < v.end)[0];
 }
-const LyricSync: FC<{ state: State }> = ({ state }) => {
-  // const [range, setRange] = useState<LyricRange|undefined>();
-  const [timer, setTimer] = useState<any|undefined>();
-  const [range, setRange] = useState<LyricRange|undefined>();
-  useEffect(() => {
-    const seekTimeMs = state.seek.time*1000;
-    const nextRange = getRangeInRange(seekTimeMs+1000);
-    if (state.seek.sync) {
-      clearTimeout(timer);
+class LyricSync extends React.Component<
+  { state: State },
+  { range?: LyricRange }
+> {
+  state = {
+    range: undefined
+  };
+  syncer: Syncer;
+  constructor(props) {
+    super(props);
+    this.syncer = new Syncer(ranges, range => {
+      this.setState({ range });
+    });
+  }
+
+  componentDidUpdate(
+    prevProps: Readonly<{ state: State }>,
+    prevState: Readonly<{}>,
+    snapshot?: any
+  ): void {
+    this.syncer.setSeekTime(prevProps.state.seek.time*1000);
+  }
+
+  render() {
+    if (!this.state.range) {
+      return null;
     }
-    if (nextRange && nextRange !== range) {
-      if (timer) {
-        clearTimeout(timer)
-      }
-      const t = setTimeout(() => {
-        setRange(nextRange);
-        setTimer(undefined);
-      }, nextRange.start - seekTimeMs);
-      setTimer(t);
+    return <div className="playerLyrics">{this.state.range.text}</div>;
+  }
+}
+
+class Syncer {
+  constructor(
+    readonly ranges: LyricRange[],
+    readonly onChange: (range: LyricRange) => void
+  ) {}
+  private getRangeInRange(ms: number): LyricRange | undefined {
+    return this.ranges.find(v => v.start <= ms && ms < v.end);
+  }
+  private seekTime: number = 0;
+  setSeekTime(seekTimeMs: number) {
+    this.seekTime = seekTimeMs;
+  }
+  private prevTime: number = performance.now();
+  private syncTimer: any | undefined;
+  scheduling = false;
+  private _current: LyricRange | undefined;
+  update() {
+    const now = performance.now();
+    const nextSeek = this.seekTime + (now - this.prevTime);
+    this.prevTime = now;
+    const nextRange = this.getRangeInRange(nextSeek);
+    if (nextRange && !this.current) {
+      this._current = nextRange;
     }
-  }, [state.seek.time]);
-  if (!range) return null;
-  return <div className="playerLyrics">{range.text}</div>;
-};
+    if (nextRange && nextRange !== this._current) {
+      clearTimeout(this.syncTimer);
+      this.syncTimer = setTimeout(() => {
+        this.seekTime = nextRange.start;
+        this.syncTimer = undefined;
+        this.onChange((this._current = nextRange));
+      }, nextRange.start - this.seekTime);
+    }
+    this.seekTime = nextSeek;
+  }
+  private scheduleTimer: any | undefined;
+  current(): LyricRange | undefined {
+    return this._current;
+  }
+  schedule() {
+    this.scheduling = true;
+    this.scheduleTimer = setTimeout(() => {
+      this.update();
+    }, 100);
+  }
+  stop() {
+    this.scheduling = false;
+    clearTimeout(this.scheduleTimer);
+    this.scheduleTimer = undefined;
+  }
+}
