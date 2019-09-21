@@ -12,11 +12,12 @@ export type Dispatcher = {
   subscribe(handler: Subscriber): number
 }
 export type AppFC<T = {}> = FC<{store: Store} & T>
-export function createStore(): Store {
+export function createStore(base: Partial<AppProps>= {}): Store {
   let store: Store = {
     reduce,
     subscribe,
-    song: undefined
+    song: undefined,
+    ...base
   };
   function reduce(reducer: Oreducer) {
     const next = {...store, ...reducer(store)};

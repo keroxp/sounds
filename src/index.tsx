@@ -2,6 +2,7 @@ import * as React from "react";
 import {  FC, useEffect, useState } from "react";
 import { render } from "react-dom";
 import { AppFC, createStore, Store } from "./oreducer";
+import {Player} from "./player";
 
 export const Header: FC = () => {
   return (
@@ -47,12 +48,11 @@ const SongCell: AppFC<{
     </div>
   );
 };
-const Player: AppFC = ({ store }) => {
+const Lyrics: AppFC = ({ store }) => {
   const { song } = store;
   if (!song) return null;
-  const [audioLoaded, setAudioLoaded] = useState(false);
   const [text, setText] = useState<string | undefined>(undefined);
-  const loading = !audioLoaded && !text;
+  const loading = !text;
   useEffect(() => {
     fetch(encodeURI(song.lyricSrc))
       .then(async resp => {
@@ -61,25 +61,19 @@ const Player: AppFC = ({ store }) => {
       .catch(console.error);
   }, [song.title]);
   return (
-    <div className="player">
+    <div className="lyrics">
       {loading && <div>Loading...</div>}
       {!loading && (
-        <div className="playerBody">
-          <div className="playerTitle">
+        <div className="lyricsBody">
+          <div className="lyricsTitle">
             {song.title}
           </div>
-          <div className="playerCredits">
+          <div className="lyricsCredits">
             <div>公開日: {song.published}</div>
             <div>作詞・作曲・編曲: keroxp</div>
             <div>歌: 初音ミク</div>
           </div>
-          <audio
-            src={encodeURI(song.audioSrc)}
-            style={{ display: audioLoaded ? "block" : "none" }}
-            onCanPlay={() => setAudioLoaded(true)}
-            controls
-          ></audio>
-          <div className="playerLyrics">
+          <div className="lyricsLyrics">
             {text!.split("\n").map((v,i) => {
               if (v) {
                 return <div className="lyricParagraph" key={i}>{v}</div>
@@ -138,7 +132,7 @@ export const Body: AppFC = ({ store }) => {
                     song={song} />
         ))}
       </div>
-      <Player store={store} />
+      <Lyrics store={store} />
     </div>
   );
 };
@@ -153,6 +147,7 @@ export const Index: FC = () => {
     <div className="content">
       <Header />
       <Body store={state} />
+      {state.song &&  <Player store={state} />}
     </div>
   );
 };
