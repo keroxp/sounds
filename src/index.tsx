@@ -141,7 +141,7 @@ export const Body: AppFC = ({ store }) => {
 export const Index: FC = () => {
   let [state, setState] = useState<Store>(() => {
     const ret = createStore({
-      song: songs[0]
+      // song: songs[0]
     });
     ret.subscribe(v => setState(v));
     return ret;

@@ -37,7 +37,7 @@ export class Syncer {
         this.syncTimer = setTimeout(() => {
           this.seekTime = nextRange.start;
           this.syncTimer = undefined;
-          console.log("onChange", nextRange.text);
+          console.log("onChange", nextRange.start, this.seekTime, nextRange.text);
           this.onChange((this._current = nextRange));
         }, nextRange.start - seek);
       }

@@ -109,10 +109,14 @@ export class Player extends React.Component<{ store: Store }, PlayerState> {
       }
       if (this.state.playing !== prevState.playing) {
         if (this.state.playing) {
-          this.audioRef.current!.play();
+          setImmediate(() => {
+            this.audioRef.current!.play();
+          });
           this.syncer.schedule();
         } else {
-          this.audioRef.current!.pause();
+          setImmediate(() => {
+            this.audioRef.current!.pause();
+          });
           this.syncer.stop();
         }
       }
