@@ -145,15 +145,19 @@ body {
   position: relative;
 }
 .playerSliderInner {
-  width: calc(100% - 16px);
   position: relative;
-  left: 8px;
+  width: 100%;
   height: 100%;
   box-sizing: border-box;
   display: flex;
-  flex-shrink: 0;
   align-items: center;
   cursor: pointer;
+  padding: 8px;
+}
+.playerSliderBack {
+  height: 6px;
+  width: 100%;
+  background-color: #555;
 }
 .playerSliderFront {
   height: 6px;
@@ -167,11 +171,6 @@ body {
   position: absolute;
   top: calc(var(--playerInnerHeight)/2 - 8px);
   border-radius: 8px;
-  background-color: #555;
-}
-.playerSliderBack {
-  height: 6px;
-  width: 100%;
   background-color: #555;
 }
 button {

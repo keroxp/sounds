@@ -92,6 +92,7 @@ const songs: Song[] = [
     title: "Polar nights",
     description: "あ",
     published: "2019/09/18",
+    thumbSrc: "/img/04.png",
     lyricSrc: "/lyrics/2019-09-18.txt",
     audioSrc: "/mp3/2019-09-18.mp3"
   },
@@ -139,7 +140,9 @@ export const Body: AppFC = ({ store }) => {
 
 export const Index: FC = () => {
   let [state, setState] = useState<Store>(() => {
-    const ret = createStore();
+    const ret = createStore({
+      song: songs[0]
+    });
     ret.subscribe(v => setState(v));
     return ret;
   });

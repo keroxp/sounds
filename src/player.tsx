@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FC, Reducer, useEffect, useReducer, useRef, useState } from "react";
+import { createRef, FC, useEffect, useState } from "react";
 import { Store } from "./oreducer";
 import { sprintf } from "sprintf";
 
@@ -14,221 +14,260 @@ type State = {
   loading: boolean;
   duration?: number;
 };
-export const Player: FC<{ store: Store }> = ({ store }) => {
-  const song = store.song!;
-  const [state, dispatch] = useReducer<Reducer<State, Partial<State>>>(
-    (prevState, action) => {
-      return { ...prevState, ...action };
-    },
-    {
+
+type TouchPointerEvent = PointerEvent | TouchEvent | MouseEvent;
+const hasPointerEvent = !!window["PointerEvent"];
+export class Player extends React.Component<{ store: Store }, State> {
+  audioRef = createRef<HTMLAudioElement>();
+  knobRef = createRef<HTMLDivElement>();
+  sliderRef = createRef<HTMLDivElement>();
+  constructor(props) {
+    super(props);
+    this.state = {
       seek: {
         time: 0,
-        sync: true
+        sync: false
       },
       dragging: false,
       playing: false,
       loading: true,
-      volume: 1
+      volume: 0,
+      duration: undefined
+    };
+  }
+  bind() {
+    const knob = this.knobRef.current;
+    const slider = this.sliderRef.current;
+    if (!knob || !slider) return;
+    const [downEv, moveEv, upEv] = this.targetEvents();
+    const moveTgt = hasPointerEvent ? window : knob;
+    knob.addEventListener(downEv, this.onDown);
+    slider.addEventListener(downEv, this.onDown);
+    moveTgt.addEventListener(moveEv, this.onMove);
+    moveTgt.addEventListener(upEv, this.onUp);
+  }
+  unbind() {
+    const moveTgt = hasPointerEvent ? window : this.knobRef.current!;
+    const [_, moveEv, upEv] = this.targetEvents();
+    moveTgt.removeEventListener(moveEv, this.onMove);
+    moveTgt.removeEventListener(upEv, this.onUp);
+  }
+  componentDidMount(): void {
+    this.bind();
+  }
+
+  componentDidUpdate(
+    prevProps: Readonly<{ store: Store }>,
+    prevState: Readonly<State>,
+    snapshot?: any
+  ): void {
+    if (prevProps.store.song != this.props.store.song) {
+      this.unbind();
+      this.bind();
+      this.setState({
+        seek: {
+          time: 0,
+          sync: true
+        },
+        playing: false,
+        loading: true,
+        dragging: false,
+        duration: undefined
+      });
     }
-  );
-  const knobRef = useRef<HTMLDivElement | null>(null);
-  const sliderRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    dispatch({
+    if (!this.state.loading) {
+      if (this.state.playing !== prevState.playing) {
+        if (this.state.playing) {
+          this.audioRef.current!.play();
+        } else {
+          this.audioRef.current!.pause();
+        }
+      }
+      if (this.state.seek !== prevState.seek) {
+        const audio = this.audioRef.current!;
+        if (this.state.seek.sync) {
+          audio.currentTime = this.state.seek.time;
+        }
+        const { width } = this.sliderRef.current!.getBoundingClientRect();
+        const knobX = (this.state.seek.time / this.state.duration!) * width;
+        this.knobRef.current!.style.transform = `translateX(${knobX}px)`;
+      }
+    }
+    if (this.state.volume !== prevState.volume) {
+      this.audioRef.current!.volume = 0//this.state.volume;
+    }
+  }
+
+  componentWillUnmount(): void {
+    this.unbind();
+  }
+
+  targetEvents(): [string, string, string] {
+    const downEv = hasPointerEvent ? "pointerdown" : "touchstart";
+    const moveEv = hasPointerEvent ? "pointermove" : "touchmove";
+    const upEv = hasPointerEvent ? "pointerup" : "touchend";
+    return [downEv, moveEv, upEv];
+  }
+
+  onDown = (ev: TouchPointerEvent) => {
+    console.log("down");
+    const { left, width } = this.sliderRef.current!.getBoundingClientRect();
+    let x = 0;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev["touches"]) {
+      x = (ev as TouchEvent).touches[0].pageX - left;
+    } else {
+      x = (ev as PointerEvent | MouseEvent).pageX - left;
+    }
+    const r = x / width;
+    // this.knobRef.current!.style.transform = `translateX(${x}px)`;
+    const time = this.state.duration! * r;
+    this.setState({
       seek: {
-        time: 0,
-        sync: true
+        time,
+        sync: false
       },
       playing: false,
-      loading: true,
-      duration: undefined
+      dragging: true
     });
-  }, [store.song]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => {
-    const audio = audioRef.current!;
-    if (state.seek.sync) {
-      audio.currentTime = state.seek.time;
+  };
+  onMove = (ev: TouchPointerEvent) => {
+    if (!this.state.dragging) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const { left, width } = this.sliderRef.current!.getBoundingClientRect();
+    let x = 0;
+    if (ev["touches"]) {
+      x = (ev as TouchEvent).touches[0].pageX - left;
+    } else {
+      x = (ev as (PointerEvent | MouseEvent)).pageX - left;
     }
-    if (knobRef.current && !state.dragging) {
-      const { width } = sliderRef.current!.getBoundingClientRect();
-      const knobX = (state.seek.time / state.duration!) * width;
-      knobRef.current.style.transform = `translateX${knobX}px)`;
-    }
-  }, [state.seek, state.dragging, knobRef.current]);
-  useEffect(() => {
-    const audio = audioRef.current!;
-    if (state.playing) {
-      audio.play();
-    } else if (!state.playing) {
-      audio.pause();
-    }
-  }, [state.playing]);
-  useEffect(() => {
-    audioRef.current!.volume = state.volume;
-  }, [state.volume]);
-  const onCanPlay = () => {
-    dispatch({
+    const knobX = Math.max(Math.min(width, x), 0);
+    this.knobRef.current!.style.transform = `translateX(${knobX}px)`;
+    const time = this.state.duration! * (knobX / width);
+    this.setState({
+      seek: {
+        time,
+        sync: false
+      }
+    });
+  };
+  onUp = (ev: TouchPointerEvent) => {
+    if (!this.state.dragging) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.setState({
+      seek: {
+        time: this.state.seek.time,
+        sync: true
+      },
+      playing: true,
+      dragging: false
+    });
+  };
+  onCanPlay = () => {
+    this.setState({
       loading: false,
       playing: true
     });
   };
-  const onLoadMetadata = (ev: React.SyntheticEvent) => {
+  onLoadMetadata = (ev: React.SyntheticEvent) => {
     const tgt = ev.target as HTMLAudioElement;
-    dispatch({
+    this.setState({
       duration: tgt.duration
     });
   };
-  const onClickPlay = () => {
-    dispatch({
-      playing: !state.playing
+  onClickPlay = () => {
+    this.setState({
+      playing: !this.state.playing
     });
   };
-  useEffect(() => {
-    const knob = knobRef.current;
-    const slider = sliderRef.current;
-    if (!knob || !slider) return;
-    let handling = false;
-    let knobX = 0;
-    const onDown = (ev: PointerEvent | MouseEvent | TouchEvent) => {
-      handling = true;
-      const { left, width } = slider.getBoundingClientRect();
-      let x = 0;
-      ev.preventDefault();
-      ev.stopPropagation();
-      if (ev["touches"]) {
-        x = (ev as TouchEvent).touches[0].pageX - left;
-      } else {
-        x = (ev as PointerEvent | MouseEvent).pageX - left;
-      }
-      const r = x / width;
-      knobX = x;
-      knob.style.transform = `translateX(${knobX}px)`;
-      dispatch({
-        seek: {
-          time: state.duration! * r,
-          sync: false
-        },
-        dragging: true
-      });
-    };
-    const onMove = (ev: PointerEvent | MouseEvent | TouchEvent) => {
-      if (!handling) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      const { left, width } = slider.getBoundingClientRect();
-      let x = 0;
-      if (ev["touches"]) {
-        x = (ev as TouchEvent).touches[0].pageX - left;
-      } else {
-        x = (ev as (PointerEvent | MouseEvent)).pageX - left;
-      }
-      knobX = Math.max(Math.min(width, x), 0);
-      knob.style.transform = `translateX(${knobX}px)`;
-      dispatch({
-        seek: {
-          time: state.duration! * (knobX / width),
-          sync: false
-        }
-      });
-    };
-    const onUp = (ev: PointerEvent | MouseEvent | TouchEvent) => {
-      if (!handling) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      handling = false;
-      const { width } = slider.getBoundingClientRect();
-      dispatch({
-        seek: {
-          time: state.duration! * (knobX / width),
-          sync: true
-        },
-        dragging: false
-      });
-    };
-    const hasPointerEvent = !!window["PointerEvent"];
-    const downEv = hasPointerEvent ? "pointerdown" : "touchstart";
-    const moveEv = hasPointerEvent ? "pointermove" : "touchmove";
-    const upEv = hasPointerEvent ? "pointerup" : "touchend";
-    const moveTgt = hasPointerEvent ? window : knob;
-    knob.addEventListener(downEv, onDown);
-    slider.addEventListener(downEv, onDown);
-    moveTgt.addEventListener(moveEv, onMove);
-    moveTgt.addEventListener(upEv, onUp);
-    return () => {
-      moveTgt.removeEventListener(moveEv, onMove);
-      moveTgt.removeEventListener(upEv, onUp);
-    };
-  }, [knobRef.current, sliderRef.current]);
-  const onTimeUpdate = (ev: React.SyntheticEvent) => {
+  onTimeUpdate = (ev: React.SyntheticEvent) => {
     const tgt = ev.target as HTMLAudioElement;
-    dispatch({
+    this.setState({
       seek: {
         time: tgt.currentTime,
         sync: false
       }
     });
   };
-  const buttonDisabled = state.duration === undefined;
-  return (
-    <div className="player">
-      <audio
-        src={song.audioSrc}
-        ref={audioRef}
-        onCanPlay={onCanPlay}
-        onLoadedMetadata={onLoadMetadata}
-        onTimeUpdate={onTimeUpdate}
-        style={{ display: "hidden" }}
-      />
-      <div className="playerInner">
-        <div className="playerThumb">
-          <img src={song.thumbSrc} />
-        </div>
-        <button className="playerButton" disabled={buttonDisabled}>
-          <i className="material-icons md-18">skip_previous</i>
-        </button>
-        <button
-          className="playerButton"
-          onClick={onClickPlay}
-          disabled={buttonDisabled}
-        >
-          {!state.playing && <i className="material-icons md-18">play_arrow</i>}
-          {state.playing && <i className="material-icons md-18">pause</i>}
-        </button>
-        <button className="playerButton" disabled={buttonDisabled}>
-          <i className="material-icons md-18">skip_next</i>
-        </button>
-        <button className="playerButton" disabled={buttonDisabled}>
-          <i className="material-icons md-18">volume_up</i>
-        </button>
-        <div>{song.title}</div>
-        {/*<RangeCounter state={state}/>*/}
-        <LyricSync state={state} />
-      </div>
-      <div className="playerInner">
-        <div className="playerCurrentTime">{fmtTime(state.seek.time)}</div>
-        <div className="playerSlider playerItem">
-          <div className="playerSliderInner" ref={sliderRef}>
-            <div className="playerSliderBack" />
-            {state.duration && (
-              <div
-                className="playerSliderFront"
-                style={{
-                  transform: `scaleX(${100 *
-                    (state.seek.time / state.duration)})`
-                }}
-              />
-            )}
+  render() {
+    let { store } = this.props;
+    const song = store.song!;
+    const buttonDisabled = this.state.duration === undefined;
+    let width = 0;
+    if (this.sliderRef.current) {
+      width = this.sliderRef.current.getBoundingClientRect().width;
+    }
+    return (
+      <div className="player">
+        <audio
+          src={song.audioSrc}
+          ref={this.audioRef}
+          onCanPlay={this.onCanPlay}
+          onLoadedMetadata={this.onLoadMetadata}
+          onTimeUpdate={this.onTimeUpdate}
+          style={{ display: "hidden" }}
+        />
+        <div className="playerInner">
+          <div className="playerThumb">
+            <img src={song.thumbSrc} />
           </div>
-          {state.duration && <div className="playerSliderKnob" ref={knobRef} />}
+          <button className="playerButton" disabled={buttonDisabled}>
+            <i className="material-icons md-18">skip_previous</i>
+          </button>
+          <button
+            className="playerButton"
+            onClick={this.onClickPlay}
+            disabled={buttonDisabled}
+          >
+            {!this.state.playing && (
+              <i className="material-icons md-18">play_arrow</i>
+            )}
+            {this.state.playing && (
+              <i className="material-icons md-18">pause</i>
+            )}
+          </button>
+          <button className="playerButton" disabled={buttonDisabled}>
+            <i className="material-icons md-18">skip_next</i>
+          </button>
+          <button className="playerButton" disabled={buttonDisabled}>
+            <i className="material-icons md-18">volume_up</i>
+          </button>
+          <div>{song.title}</div>
+          {/*<RangeCounter state={state}/>*/}
+          <LyricSync state={this.state} />
         </div>
-        <div className="playerRemainingTime">
-          -{fmtTime((state.duration || 0) - state.seek.time)}
+        <div className="playerInner">
+          <div className="playerCurrentTime">
+            {fmtTime(this.state.seek.time)}
+          </div>
+          <div className="playerSlider playerItem">
+            <div className="playerSliderInner" ref={this.sliderRef}>
+              <div className="playerSliderBack">
+                {this.state.duration && (
+                  <div
+                    className="playerSliderFront"
+                    style={{
+                      width:
+                        (this.state.seek.time / this.state.duration) * width
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+            <div className="playerSliderKnob" ref={this.knobRef} />
+          </div>
+          <div className="playerRemainingTime">
+            -{fmtTime((this.state.duration || 0) - this.state.seek.time)}
+          </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
+}
+
 let startTime = new Date().getTime();
 const RangeCounter: FC<{ state: State }> = ({ state }) => {
   const [rangeStart, setRangeStart] = useState<number>(0);
@@ -350,87 +389,109 @@ const ranges = `
       };
     }
   );
-function getRangeInRange(ms: number): LyricRange | undefined {
-  return ranges.filter(v => v.start <= ms && ms < v.end)[0];
-}
-class LyricSync extends React.Component<
-  { state: State },
-  { range?: LyricRange }
-> {
-  state = {
-    range: undefined
-  };
+
+class LyricSync extends React.Component<{ state: State }, { cnt: number }> {
   syncer: Syncer;
+
   constructor(props) {
     super(props);
+    this.state = {
+      cnt: 0
+    };
     this.syncer = new Syncer(ranges, range => {
-      this.setState({ range });
+      this.setState({ cnt: this.state.cnt + 1 });
     });
+  }
+
+  componentDidMount(): void {
+    this.syncer.schedule();
   }
 
   componentDidUpdate(
     prevProps: Readonly<{ state: State }>,
-    prevState: Readonly<{}>,
+    prevState: Readonly<{ cnt: number }>,
     snapshot?: any
   ): void {
-    this.syncer.setSeekTime(prevProps.state.seek.time*1000);
+    const { seek } = this.props.state;
+    this.syncer.sync(seek.time * 1000, false);
+    if (this.props.state.playing) {
+      this.syncer.schedule();
+    } else {
+      this.syncer.stop();
+    }
   }
 
   render() {
-    if (!this.state.range) {
+    const range = this.syncer.current();
+    if (!range) {
       return null;
     }
-    return <div className="playerLyrics">{this.state.range.text}</div>;
+    return <div className="playerLyrics">{range.text}</div>;
   }
 }
 
 class Syncer {
   constructor(
     readonly ranges: LyricRange[],
-    readonly onChange: (range: LyricRange) => void
+    readonly onChange: (range: LyricRange | undefined) => void
   ) {}
+
   private getRangeInRange(ms: number): LyricRange | undefined {
     return this.ranges.find(v => v.start <= ms && ms < v.end);
   }
+
   private seekTime: number = 0;
-  setSeekTime(seekTimeMs: number) {
-    this.seekTime = seekTimeMs;
-  }
   private prevTime: number = performance.now();
   private syncTimer: any | undefined;
   scheduling = false;
   private _current: LyricRange | undefined;
+
   update() {
     const now = performance.now();
     const nextSeek = this.seekTime + (now - this.prevTime);
+    this.sync(nextSeek, true);
     this.prevTime = now;
-    const nextRange = this.getRangeInRange(nextSeek);
+  }
+
+  sync(seek: number, fromUpdate: boolean) {
+    const nextRange = this.getRangeInRange(seek);
     if (nextRange && !this.current) {
       this._current = nextRange;
     }
     if (nextRange && nextRange !== this._current) {
-      clearTimeout(this.syncTimer);
-      this.syncTimer = setTimeout(() => {
-        this.seekTime = nextRange.start;
-        this.syncTimer = undefined;
-        this.onChange((this._current = nextRange));
-      }, nextRange.start - this.seekTime);
+      if (!fromUpdate) {
+        this._current = nextRange;
+      } else {
+        clearTimeout(this.syncTimer);
+        this.syncTimer = setTimeout(() => {
+          this.seekTime = nextRange.start;
+          this.syncTimer = undefined;
+          this.onChange((this._current = nextRange));
+        }, nextRange.start - this.seekTime);
+      }
     }
-    this.seekTime = nextSeek;
+    this.seekTime = seek;
   }
+
   private scheduleTimer: any | undefined;
+
   current(): LyricRange | undefined {
     return this._current;
   }
+
   schedule() {
+    if (this.scheduling) return;
     this.scheduling = true;
-    this.scheduleTimer = setTimeout(() => {
+    this.scheduleTimer = setInterval(() => {
       this.update();
     }, 100);
   }
+
   stop() {
     this.scheduling = false;
-    clearTimeout(this.scheduleTimer);
+    clearInterval(this.scheduleTimer);
+    clearTimeout(this.syncTimer);
+    this.syncTimer = undefined;
     this.scheduleTimer = undefined;
   }
 }
