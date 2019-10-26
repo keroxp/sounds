@@ -155,4 +155,8 @@ export const Index: FC = () => {
   );
 };
 
-render(<Index />, document.getElementById("app"));
+window.addEventListener("DOMContentLoaded", () => {
+  render(<Index />, document.getElementById("app"));
+});
+
+

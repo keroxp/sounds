@@ -4,7 +4,8 @@ const path = require("path");
 module.exports = {
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
   entry: {
-    index: path.resolve(__dirname, "src/index.tsx")
+    index: path.resolve(__dirname, "src/index.tsx"),
+    editor: path.resolve(__dirname, "src/editor.tsx")
   },
   output: {
     filename: "[name].js",

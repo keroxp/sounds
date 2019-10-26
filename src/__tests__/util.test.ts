@@ -1,4 +1,4 @@
-import {fmtms} from "../player";
+import {fmtms} from "../util";
 
 describe("time", () => {
   test("fmtms", () => {
