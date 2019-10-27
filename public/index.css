@@ -117,6 +117,7 @@ body {
 }
 .playerInner {
   width: var(--contentWidth);
+  max-width: var(--contentWidth);
   height: var(--playerInnerHeight);
   margin: auto;
   display: flex;

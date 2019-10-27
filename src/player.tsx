@@ -294,8 +294,8 @@ export class Player extends React.Component<{ store: Store }, PlayerState> {
             {fmtTime(this.state.seek.time)}
           </div>
           <div className="playerSlider playerItem">
-            <div className="playerSliderInner" ref={this.sliderRef}>
-              <div className="playerSliderBack">
+            <div className="playerSliderInner">
+              <div className="playerSliderBack" ref={this.sliderRef}>
                 {this.state.duration && (
                   <div
                     className="playerSliderFront"
